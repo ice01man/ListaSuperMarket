@@ -1,57 +1,131 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Compras Inteligente</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mis Compras</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-    <div class="container">
-        <h1>Lista de Compras Inteligente 🛒</h1>
-        
-        <div class="input-group">
-            <label for="itemName">Producto
-                <input type="text" id="itemName" placeholder="Nombre del producto">
-            </label>
-            <label for="itemQuantity">Cantidad
-                <input type="number" id="itemQuantity" placeholder="Cantidad" value="1" min="1">
-            </label>
-            <label for="itemPrice">Precio
-                <input type="number" id="itemPrice" placeholder="Precio unitario" value="0" step="0.01" min="0">
-            </label>
-        </div>
-    
-        <button onclick="addItem()">Añadir Producto ➕</button>
-        <div class="total" id="totalAmount">Total: $0.00</div>
-        <ul id="itemsList"></ul>
-        
-        <div class="action-buttons">
-            <button onclick="shareList()" class="btn-blue">Compartir Lista 📤</button>
-            <!-- FIX: "Ver Lista" llamaba a updateList() que ya se ejecuta automáticamente -->
-            <!-- Se reemplaza por clearList() que faltaba en la UI -->
-            <button onclick="clearList()" class="btn-red">Borrar Lista 🗑️</button>
-            <button onclick="saveToCloud()" class="btn-cloud">Guardar en Nube ☁️</button>
-            <button onclick="loadFromCloud()" class="btn-cloud">Cargar desde Nube 📥</button>
-        </div>
 
-        <!-- Modal para ingresar listId al cargar desde la nube -->
-        <div id="cloudModal" class="modal" style="display:none;">
-            <div class="modal-content">
-                <h3>Cargar Lista desde la Nube</h3>
-                <label>ID de Lista:
-                    <input type="text" id="cloudListId" placeholder="Ingresa el ID de tu lista">
-                </label>
-                <div class="modal-buttons">
-                    <button onclick="confirmLoad()" class="btn-blue">Cargar</button>
-                    <button onclick="closeModal()" class="btn-red">Cancelar</button>
-                </div>
-            </div>
-        </div>
+  <!-- ░░ PANTALLA: Registro de usuario ░░ -->
+  <div id="screen-welcome" class="screen active">
+    <div class="welcome-wrap">
+      <div class="welcome-icon">🛒</div>
+      <h1>Mis<br/><span>Compras</span></h1>
+      <p>Controlá tus gastos mes a mes.<br/>¿Cómo te llamás?</p>
+      <div class="welcome-input-wrap">
+        <input type="text" id="userName" placeholder="Tu nombre" maxlength="30" autocomplete="off"/>
+        <button onclick="registerUser()">Entrar →</button>
+      </div>
+    </div>
+  </div>
 
-        <div id="cloudStatus" class="cloud-status" style="display:none;"></div>
+  <!-- ░░ PANTALLA PRINCIPAL ░░ -->
+  <div id="screen-main" class="screen">
+
+    <header>
+      <div class="header-left">
+        <span class="logo">🛒</span>
+        <div>
+          <div class="header-title">Mis Compras</div>
+          <div class="header-user" id="headerUser">—</div>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" onclick="showTab('tab-list', this)">Lista</button>
+        <button class="nav-btn"        onclick="showTab('tab-history', this)">Historial</button>
+        <button class="nav-btn"        onclick="showTab('tab-reports', this)">Reportes</button>
+        <button class="btn-theme" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+      </nav>
+    </header>
+
+    <!-- ── TAB: Lista ── -->
+    <div id="tab-list" class="tab active">
+      <div class="list-header">
+        <div>
+          <h2  id="currentListLabel">Nueva lista</h2>
+          <span class="list-date" id="currentListDate"></span>
+        </div>
+        <div class="list-header-actions">
+          <input type="text" id="supermarket" placeholder="Supermercado (opc.)" class="input-sm"/>
+          <button class="btn-primary" onclick="saveListToCloud()">☁️ Guardar</button>
+        </div>
+      </div>
+
+      <div class="add-form">
+        <input type="text"   id="itemName"     placeholder="Producto" autocomplete="off" class="input-product"/>
+        <input type="number" id="itemQuantity" value="1"  min="1"    class="input-qty"/>
+        <input type="number" id="itemPrice"    value="0"  step="0.01" min="0" class="input-price"/>
+        <button class="btn-add" onclick="addItem()">＋</button>
+      </div>
+
+      <div class="total-bar">
+        <span>Total</span>
+        <strong id="totalAmount">$0.00</strong>
+      </div>
+
+      <ul id="itemsList"></ul>
+
+      <div class="list-actions">
+        <button class="btn-ghost" onclick="shareList()">📤 Compartir</button>
+        <button class="btn-ghost btn-danger" onclick="clearList()">🗑️ Nueva lista</button>
+      </div>
     </div>
 
-    <script src="./script.js"></script>
+    <!-- ── TAB: Historial ── -->
+    <div id="tab-history" class="tab">
+      <div class="section-header">
+        <h2>Historial</h2>
+        <button class="btn-ghost" onclick="loadHistory()">↻ Actualizar</button>
+      </div>
+      <div id="historyList" class="card-grid">
+        <p class="empty-msg">Guardá tu primera lista para verla acá.</p>
+      </div>
+    </div>
+
+    <!-- ── TAB: Reportes ── -->
+    <div id="tab-reports" class="tab">
+      <div class="section-header">
+        <h2>Reportes</h2>
+        <button class="btn-ghost" onclick="loadReports()">↻ Actualizar</button>
+      </div>
+      <div class="reports-grid">
+        <div class="report-card">
+          <h3>💰 Gasto por mes</h3>
+          <div id="reportMonthly"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
+        <div class="report-card">
+          <h3>🏆 Más comprados</h3>
+          <div id="reportTopProducts"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
+        <div class="report-card full-width">
+          <h3>📈 Evolución de precios</h3>
+          <input type="text" id="searchProduct" placeholder="Buscar producto…" oninput="filterPriceEvolution()" class="input-search"/>
+          <div id="reportPriceEvolution"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal detalle lista -->
+  <div id="modal" class="modal-overlay" style="display:none" onclick="closeModal(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalTitle">Detalle</h3>
+        <button class="btn-close" onclick="document.getElementById('modal').style.display='none'">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
