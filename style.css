@@ -1,0 +1,176 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.input-group {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+input, button {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    opacity: 0.88;
+}
+
+.btn-blue  { background: #2196F3; }
+.btn-red   { background: #e53935; }
+.btn-cloud { background: #7b1fa2; }
+
+#itemsList {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+
+.item {
+    display: grid;
+    /*  Fila 1: nombre (ocupa todo el ancho)
+        Fila 2: inputs | total | botón              */
+    grid-template-columns: 1fr auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 10px;
+    margin: 5px 0;
+    background: #f8f8f8;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* Fila 1 — nombre ocupa las 3 columnas */
+.item > span:first-child {
+    grid-column: 1 / -1;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Fila 2 col 1 — inputs */
+.item-inputs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+/* Fila 2 col 2 — total */
+.item-total {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 500;
+    min-width: 70px;
+}
+
+.qty-input   { width: 48px; padding: 6px 4px; }
+.price-input { width: 72px; padding: 6px 4px; }
+
+.total {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-top: 20px;
+}
+
+.error { border-color: #ff0000; }
+
+/* Cloud status banner */
+.cloud-status {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+.cloud-status--info    { background: #e3f2fd; color: #1565c0; }
+.cloud-status--success { background: #e8f5e9; color: #2e7d32; }
+.cloud-status--error   { background: #ffebee; color: #c62828; }
+
+/* Modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+.modal-content {
+    background: white;
+    padding: 28px;
+    border-radius: 10px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.modal-content h3 { margin: 0; }
+.modal-content label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.modal-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Responsive */
+@media (max-width: 630px) {
+    .input-group {
+        flex-direction: column;
+    }
+
+    .input-group label {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        width: 100%;
+    }
+    .item-inputs {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .qty-input   { width: 100%; }
+    .price-input { width: 100%; }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .action-buttons button {
+        width: 100%;
+    }
+}

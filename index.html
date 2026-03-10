@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Compras Inteligente</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Lista de Compras Inteligente 🛒</h1>
+        
+        <div class="input-group">
+            <label for="itemName">Producto
+                <input type="text" id="itemName" placeholder="Nombre del producto">
+            </label>
+            <label for="itemQuantity">Cantidad
+                <input type="number" id="itemQuantity" placeholder="Cantidad" value="1" min="1">
+            </label>
+            <label for="itemPrice">Precio
+                <input type="number" id="itemPrice" placeholder="Precio unitario" value="0" step="0.01" min="0">
+            </label>
+        </div>
+    
+        <button onclick="addItem()">Añadir Producto ➕</button>
+        <div class="total" id="totalAmount">Total: $0.00</div>
+        <ul id="itemsList"></ul>
+        
+        <div class="action-buttons">
+            <button onclick="shareList()" class="btn-blue">Compartir Lista 📤</button>
+            <!-- FIX: "Ver Lista" llamaba a updateList() que ya se ejecuta automáticamente -->
+            <!-- Se reemplaza por clearList() que faltaba en la UI -->
+            <button onclick="clearList()" class="btn-red">Borrar Lista 🗑️</button>
+            <button onclick="saveToCloud()" class="btn-cloud">Guardar en Nube ☁️</button>
+            <button onclick="loadFromCloud()" class="btn-cloud">Cargar desde Nube 📥</button>
+        </div>
+
+        <!-- Modal para ingresar listId al cargar desde la nube -->
+        <div id="cloudModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3>Cargar Lista desde la Nube</h3>
+                <label>ID de Lista:
+                    <input type="text" id="cloudListId" placeholder="Ingresa el ID de tu lista">
+                </label>
+                <div class="modal-buttons">
+                    <button onclick="confirmLoad()" class="btn-blue">Cargar</button>
+                    <button onclick="closeModal()" class="btn-red">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="cloudStatus" class="cloud-status" style="display:none;"></div>
+    </div>
+
+    <script src="./script.js"></script>
+</body>
+</html>
