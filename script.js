@@ -9,7 +9,7 @@ const SUPABASE_ANON = 'sb_publishable_b0xt4ednHwA7mCj-TSGZVA_OHJ0ay8W';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 
- // ================================================================
+// ================================================================
 //  ESTADO GLOBAL
 // ================================================================
 let currentUser  = null;   // { id, name, device_key }
@@ -144,6 +144,7 @@ async function enterApp() {
   document.getElementById('screen-main').classList.add('active');
   document.getElementById('headerUser').textContent = currentUser.name;
   await checkForDraft();
+  loadSupermarketOptions(); // pre-cargar opciones de supermercado
 }
  
 // ================================================================
@@ -155,8 +156,8 @@ function showTab(tabId, btn) {
   document.getElementById(tabId).classList.add('active');
   btn.classList.add('active');
  
-  if (tabId === 'tab-history') loadHistory();
-  if (tabId === 'tab-reports') loadReports();
+  if (tabId === 'tab-history') { loadHistory(); loadSupermarketOptions(); }
+  if (tabId === 'tab-reports') { const f = document.getElementById('reportFilterSupermarket'); if(f) f.value=''; loadReports(); }
 }
  
 // ================================================================
@@ -341,43 +342,89 @@ async function saveListToCloud() {
 // ================================================================
 //  HISTORIAL
 // ================================================================
+// Cache de todas las listas para filtrado local
+let _allHistoryLists = [];
+ 
 async function loadHistory() {
   if (!currentUser) return;
   const container = document.getElementById('historyList');
   container.innerHTML = '<p class="empty-msg">Cargando…</p>';
  
   try {
-    // Solo listas definitivamente guardadas (status = 'done'), no borradores
     const { data, error } = await db
       .from('shopping_lists')
       .select('id, label, total, supermarket, created_at, status')
       .eq('user_id', currentUser.id)
       .eq('status', 'done')
       .order('created_at', { ascending: false })
-      .limit(30);
+      .limit(100);
  
     if (error) throw error;
-    if (!data.length) {
+ 
+    _allHistoryLists = data || [];
+ 
+    if (!_allHistoryLists.length) {
       container.innerHTML = '<p class="empty-msg">Aún no guardaste listas.<br/>Agregá productos y tocá ☁️ Guardar.</p>';
       return;
     }
  
-    container.innerHTML = data.map(list => `
-      <div class="history-card" onclick="showListDetail('${list.id}', '${escapeHtml(list.label)}', '${escapeHtml(list.supermarket || '')}', '${new Date(list.created_at).toLocaleDateString('es-AR')}')">
-        <div class="history-card-top">
-          <span class="history-label">${list.label}</span>
-          <span class="history-total">$${parseFloat(list.total).toFixed(2)}</span>
-        </div>
-        <div class="history-card-bottom">
-          <span>${list.supermarket || 'Sin supermercado'}</span>
-          <span>${new Date(list.created_at).toLocaleDateString('es-AR')}</span>
-        </div>
-      </div>
-    `).join('');
+    renderHistoryCards(_allHistoryLists);
  
   } catch (err) {
     container.innerHTML = `<p class="empty-msg error-msg">Error: ${err.message}</p>`;
   }
+}
+ 
+function renderHistoryCards(lists) {
+  const container = document.getElementById('historyList');
+  if (!lists.length) {
+    container.innerHTML = '<p class="empty-msg">No hay listas para ese filtro.</p>';
+    return;
+  }
+  container.innerHTML = lists.map(list => `
+    <div class="history-card" onclick="showListDetail('${list.id}', '${escapeHtml(list.label)}', '${escapeHtml(list.supermarket || '')}', '${new Date(list.created_at).toLocaleDateString('es-AR')}')">
+      <div class="history-card-top">
+        <span class="history-label">${list.label}</span>
+        <span class="history-total">$${parseFloat(list.total).toFixed(2)}</span>
+      </div>
+      <div class="history-card-bottom">
+        <span class="history-supermarket">${list.supermarket ? '🏪 ' + escapeHtml(list.supermarket) : 'Sin supermercado'}</span>
+        <span>${new Date(list.created_at).toLocaleDateString('es-AR')}</span>
+      </div>
+    </div>
+  `).join('');
+}
+ 
+function filterHistory() {
+  const q = document.getElementById('historyFilterSupermarket')?.value.trim().toLowerCase() || '';
+  if (!q) { renderHistoryCards(_allHistoryLists); return; }
+  const filtered = _allHistoryLists.filter(l =>
+    (l.supermarket || '').toLowerCase().includes(q)
+  );
+  renderHistoryCards(filtered);
+}
+ 
+async function loadSupermarketOptions() {
+  if (!currentUser) return;
+  try {
+    const { data } = await db
+      .from('shopping_lists')
+      .select('supermarket')
+      .eq('user_id', currentUser.id)
+      .eq('status', 'done')
+      .not('supermarket', 'is', null);
+ 
+    const unique = [...new Set((data || []).map(r => r.supermarket).filter(Boolean))].sort();
+ 
+    // Llenar datalist del historial
+    const dlHistory = document.getElementById('history-supermarket-options');
+    if (dlHistory) dlHistory.innerHTML = unique.map(s => `<option value="${escapeHtml(s)}">`).join('');
+ 
+    // Llenar datalist del input de carga
+    const dlInput = document.getElementById('supermarket-options');
+    if (dlInput) dlInput.innerHTML = unique.map(s => `<option value="${escapeHtml(s)}">`).join('');
+ 
+  } catch(e) { /* silencioso */ }
 }
  
 async function showListDetail(listId, label, supermarket, date) {
@@ -432,19 +479,42 @@ function closeModal(e) {
 // ================================================================
 async function loadReports() {
   if (!currentUser) return;
-  await Promise.all([loadMonthlyReport(), loadTopProducts(), loadPriceEvolution()]);
+  // Poblar datalist del filtro con supermercados disponibles
+  const dlReport = document.getElementById('report-supermarket-options');
+  if (dlReport) {
+    const { data: smData } = await db
+      .from('shopping_lists')
+      .select('supermarket')
+      .eq('user_id', currentUser.id)
+      .eq('status', 'done')
+      .not('supermarket', 'is', null);
+    const unique = [...new Set((smData || []).map(r => r.supermarket).filter(Boolean))].sort();
+    dlReport.innerHTML = unique.map(s => `<option value="${escapeHtml(s)}">`).join('');
+  }
+  const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
+  await Promise.all([loadMonthlyReport(filterVal), loadTopProducts(filterVal), loadPriceEvolution(filterVal)]);
 }
  
-async function loadMonthlyReport() {
+function applyReportFilter() {
+  const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
+  Promise.all([loadMonthlyReport(filterVal), loadTopProducts(filterVal), loadPriceEvolution(filterVal)]);
+}
+ 
+async function loadMonthlyReport(supermarketFilter = '') {
   const el = document.getElementById('reportMonthly');
   el.innerHTML = '<p class="empty-msg">Cargando…</p>';
  
-  const { data, error } = await db
+  let query = db
     .from('shopping_lists')
-    .select('year, month, label, total')
+    .select('year, month, label, total, supermarket')
     .eq('user_id', currentUser.id)
+    .eq('status', 'done')
     .order('year',  { ascending: false })
     .order('month', { ascending: false });
+ 
+  if (supermarketFilter) query = query.ilike('supermarket', `%${supermarketFilter}%`);
+ 
+  const { data, error } = await query;
  
   if (error || !data?.length) { el.innerHTML = '<p class="empty-msg">Sin datos aún</p>'; return; }
  
@@ -466,15 +536,19 @@ async function loadMonthlyReport() {
   `).join('');
 }
  
-async function loadTopProducts() {
+async function loadTopProducts(supermarketFilter = '') {
   const el = document.getElementById('reportTopProducts');
   el.innerHTML = '<p class="empty-msg">Cargando…</p>';
  
-  // Join a través de shopping_lists para filtrar por usuario
-  const { data: lists } = await db
+  let listQuery = db
     .from('shopping_lists')
     .select('id')
-    .eq('user_id', currentUser.id);
+    .eq('user_id', currentUser.id)
+    .eq('status', 'done');
+ 
+  if (supermarketFilter) listQuery = listQuery.ilike('supermarket', `%${supermarketFilter}%`);
+ 
+  const { data: lists } = await listQuery;
  
   if (!lists?.length) { el.innerHTML = '<p class="empty-msg">Sin datos aún</p>'; return; }
  
@@ -510,14 +584,19 @@ async function loadTopProducts() {
   `).join('');
 }
  
-async function loadPriceEvolution() {
+async function loadPriceEvolution(supermarketFilter = '') {
   const el = document.getElementById('reportPriceEvolution');
   el.innerHTML = '<p class="empty-msg">Cargando…</p>';
  
-  const { data: lists } = await db
+  let listQuery = db
     .from('shopping_lists')
     .select('id, label, year, month')
-    .eq('user_id', currentUser.id);
+    .eq('user_id', currentUser.id)
+    .eq('status', 'done');
+ 
+  if (supermarketFilter) listQuery = listQuery.ilike('supermarket', `%${supermarketFilter}%`);
+ 
+  const { data: lists } = await listQuery;
  
   if (!lists?.length) { el.innerHTML = '<p class="empty-msg">Sin datos aún</p>'; return; }
  
@@ -651,9 +730,9 @@ function saveDraftLocal() {
 // Guarda/actualiza borrador en Supabase en background
 let _draftTimer = null;
 function saveDraftCloud() {
-  // Debounce: espera 31.5s sin cambios antes de subir
+  // Debounce: espera 1.5s sin cambios antes de subir
   clearTimeout(_draftTimer);
-  _draftTimer = setTimeout(_uploadDraft, 31500);
+  _draftTimer = setTimeout(_uploadDraft, 1500);
 }
  
 async function _uploadDraft() {

@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-
+ 
   <!-- ░░ PANTALLA: Registro de usuario ░░ -->
   <div id="screen-welcome" class="screen active">
     <div class="welcome-wrap">
@@ -25,10 +25,10 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- ░░ PANTALLA PRINCIPAL ░░ -->
   <div id="screen-main" class="screen">
-
+ 
     <header>
       <div class="header-left">
         <span class="logo">🛒</span>
@@ -44,7 +44,7 @@
         <button class="btn-theme" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
       </nav>
     </header>
-
+ 
     <!-- ── TAB: Lista ── -->
     <div id="tab-list" class="tab active">
       <div class="list-header">
@@ -53,46 +53,57 @@
           <span class="list-date" id="currentListDate"></span>
         </div>
         <div class="list-header-actions">
-          <input type="text" id="supermarket" placeholder="Supermercado (opc.)" class="input-sm"/>
+          <input type="text" id="supermarket" placeholder="Supermercado (opc.)" class="input-sm" list="supermarket-options" autocomplete="off"/>
+          <datalist id="supermarket-options"></datalist>
           <button class="btn-primary" onclick="saveListToCloud()">☁️ Guardar</button>
         </div>
       </div>
-
+ 
       <div class="add-form">
         <input type="text"   id="itemName"     placeholder="Producto" autocomplete="off" class="input-product"/>
         <input type="number" id="itemQuantity" value="1"  min="1"    class="input-qty"/>
         <input type="number" id="itemPrice"    value="0"  step="0.01" min="0" class="input-price"/>
         <button class="btn-add" onclick="addItem()">＋</button>
       </div>
-
+ 
       <div class="total-bar">
         <span>Total</span>
         <strong id="totalAmount">$0.00</strong>
       </div>
-
+ 
       <ul id="itemsList"></ul>
-
+ 
       <div class="list-actions">
         <button class="btn-ghost" onclick="shareList()">📤 Compartir</button>
         <button class="btn-ghost btn-danger" onclick="clearList()">🗑️ Nueva lista</button>
       </div>
     </div>
-
+ 
     <!-- ── TAB: Historial ── -->
     <div id="tab-history" class="tab">
       <div class="section-header">
         <h2>Historial</h2>
         <button class="btn-ghost" onclick="loadHistory()">↻ Actualizar</button>
       </div>
+      <div class="history-filter-bar">
+        <input type="text" id="historyFilterSupermarket" list="history-supermarket-options" placeholder="Filtrar por supermercado…" class="input-search" oninput="filterHistory()" autocomplete="off"/>
+        <datalist id="history-supermarket-options"></datalist>
+      </div>
       <div id="historyList" class="card-grid">
         <p class="empty-msg">Guardá tu primera lista para verla acá.</p>
       </div>
     </div>
-
+ 
     <!-- ── TAB: Reportes ── -->
     <div id="tab-reports" class="tab">
       <div class="section-header">
         <h2>Reportes</h2>
+        <div class="reports-filter-wrap">
+          <input type="text" id="reportFilterSupermarket" list="report-supermarket-options"
+            placeholder="Todos los supermercados" class="input-search input-report-filter"
+            oninput="applyReportFilter()" autocomplete="off"/>
+          <datalist id="report-supermarket-options"></datalist>
+        </div>
         <button class="btn-ghost" onclick="loadReports()">↻ Actualizar</button>
       </div>
       <div class="reports-grid">
@@ -111,12 +122,12 @@
         </div>
       </div>
     </div>
-
+ 
   </div>
-
+ 
   <!-- Toast -->
   <div id="toast" class="toast"></div>
-
+ 
   <!-- Modal detalle lista -->
   <div id="modal" class="modal-overlay" style="display:none" onclick="closeModal(event)">
     <div class="modal-box">
@@ -127,7 +138,7 @@
       <div id="modalBody"></div>
     </div>
   </div>
-
+ 
   <script src="script.js"></script>
 </body>
 </html>
