@@ -1,0 +1,10 @@
+{
+  "name": "mis-compras",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA de listas de compras con backend serverless en Vercel + MongoDB Atlas",
+  "dependencies": {
+    "mongodb": "^6.12.0"
+  }
+}
