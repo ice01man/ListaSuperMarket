@@ -1,0 +1,14 @@
+# Dependencias (se reinstalan con npm install)
+node_modules/
+ 
+# Secretos — NUNCA subir a Git
+.env
+.env.local
+.env.*.local
+ 
+# Cache de Vercel
+.vercel
+ 
+# Sistema
+.DS_Store
+Thumbs.db
