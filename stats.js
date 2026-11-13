@@ -283,7 +283,23 @@
         prevIsGap:     prevIdx !== null && prevIdx !== lastIdx - 1,
         changeVsPrev:  prev ? (last - prev) / prev : null
       };
-    }).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    }).sort(byChange);
+  }
+
+  // Orden: 1) subas (mayor % primero)  2) bajas (mayor baja primero)
+  //        3) sin cambio (0%)           4) sin % (alfabético)
+  function changeGroup(c) {
+    if (c === null || !isFinite(c)) return 3;
+    if (c >  0.0005) return 0;
+    if (c < -0.0005) return 1;
+    return 2;
+  }
+  function byChange(a, b) {
+    const ga = changeGroup(a.changeVsPrev), gb = changeGroup(b.changeVsPrev);
+    if (ga !== gb) return ga - gb;
+    if (ga === 0) return b.changeVsPrev - a.changeVsPrev;
+    if (ga === 1) return a.changeVsPrev - b.changeVsPrev;
+    return a.name.localeCompare(b.name, 'es');
   }
 
   // Totales para la fila TOTAL de la tabla de productos
