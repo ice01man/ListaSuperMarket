@@ -133,7 +133,7 @@ ul { list-style: none; }
 
 /* ── Main app ── */
 #screen-main {
-  max-width: 720px;
+  max-width: 920px;
   margin: 0 auto;
   padding: 0 16px 80px;
 }
