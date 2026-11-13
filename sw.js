@@ -3,11 +3,12 @@
 //  Regla clave: /api/* NUNCA se cachea (siempre va a la red), así los
 //  datos de MongoDB llegan frescos. El resto (app shell) va cache-first.
 // ================================================================
-const CACHE = 'miscompras-v1';
+const CACHE = 'miscompras-v2';   // subir versión en cada deploy para que el celular tome los archivos nuevos
 const APP_SHELL = [
   '/',
   '/index.html',
   '/style.css',
+  '/stats.js',
   '/script.js',
   '/manifest.json',
   '/icons/icon-192.png'

@@ -477,6 +477,8 @@ async function loadReports() {
   }
 
   const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
+  loadSpendingStats(filterVal);
+  loadPriceIncreases(filterVal);
   loadMonthlyReport(filterVal);
   loadTopProducts(filterVal);
   loadPriceEvolution(filterVal);
@@ -484,6 +486,8 @@ async function loadReports() {
 
 function applyReportFilter() {
   const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
+  loadSpendingStats(filterVal);
+  loadPriceIncreases(filterVal);
   loadMonthlyReport(filterVal);
   loadTopProducts(filterVal);
   loadPriceEvolution(filterVal);
@@ -495,6 +499,177 @@ function filteredDoneLists(supermarketFilter = '') {
   if (!supermarketFilter) return all;
   const q = supermarketFilter.toLowerCase();
   return all.filter(l => (l.supermarket || '').toLowerCase().includes(q));
+}
+
+// ---------- Estadísticas de gasto (promedio / mediana) ----------
+let _statsPeriod = 'month';   // 'month' | 'quarter' | 'year'
+
+function setStatsPeriod(period, btn) {
+  _statsPeriod = period;
+  document.querySelectorAll('.stats-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
+  loadSpendingStats(filterVal);
+}
+
+function fmtMoney(n) {
+  return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtChange(c) {
+  if (c === null || !isFinite(c)) return '<span class="stats-change flat">—</span>';
+  const pct = (c * 100).toFixed(1).replace('.', ',');
+  const cls = c > 0.0005 ? 'up' : c < -0.0005 ? 'down' : 'flat';
+  const arrow = cls === 'up' ? '▲' : cls === 'down' ? '▼' : '→';
+  return `<span class="stats-change ${cls}">${arrow} ${c > 0 ? '+' : ''}${pct}%</span>`;
+}
+
+function loadSpendingStats(supermarketFilter = '') {
+  const el    = document.getElementById('reportStats');
+  const sumEl = document.getElementById('reportStatsSummary');
+  if (!el) return;
+  const data = filteredDoneLists(supermarketFilter);
+
+  if (!data.length) {
+    el.innerHTML = '<p class="empty-msg">Sin datos aún</p>';
+    if (sumEl) sumEl.innerHTML = '';
+    return;
+  }
+
+  // Resumen general del filtro actual
+  const o = computeOverallStats(data);
+  if (sumEl) sumEl.innerHTML = `
+    <div class="stats-summary">
+      <div class="stats-kpi"><span class="stats-kpi-label">Compras</span><span class="stats-kpi-value">${o.count}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Promedio por compra</span><span class="stats-kpi-value">${fmtMoney(o.avgPerPurchase)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Mediana por compra</span><span class="stats-kpi-value">${fmtMoney(o.medianPerPurchase)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Promedio mensual</span><span class="stats-kpi-value">${fmtMoney(o.avgPerMonth)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Mediana mensual</span><span class="stats-kpi-value">${fmtMoney(o.medianPerMonth)}</span></div>
+    </div>`;
+
+  const rows = computeSpendingStats(data, _statsPeriod);
+  const showMonthly = _statsPeriod !== 'month';
+  const prevLabel = { month: 'mes', quarter: 'trimestre', year: 'año' }[_statsPeriod];
+
+  el.innerHTML = `
+    <div class="stats-table-wrap">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Compras</th>
+            <th>Total</th>
+            <th>Promedio x compra</th>
+            <th>Mediana x compra</th>
+            ${showMonthly ? '<th>Promedio mensual</th><th>Mediana mensual</th>' : '<th>Mín · Máx</th>'}
+            <th>vs ${prevLabel} ant.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td class="stats-period">${escapeHtml(r.label)}</td>
+              <td>${r.count}</td>
+              <td class="stats-total">${fmtMoney(r.total)}</td>
+              <td>${fmtMoney(r.avgPerPurchase)}</td>
+              <td>${fmtMoney(r.medianPerPurchase)}</td>
+              ${showMonthly
+                ? `<td>${fmtMoney(r.avgPerMonth)}<span class="stats-note">${r.monthsWithPurchases} mes${r.monthsWithPurchases !== 1 ? 'es' : ''}</span></td>
+                   <td>${fmtMoney(r.medianPerMonth)}</td>`
+                : `<td>${fmtMoney(r.minPurchase)}<span class="stats-note">máx ${fmtMoney(r.maxPurchase)}</span></td>`}
+              <td>${fmtChange(r.changeVsPrev)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${showMonthly ? '<p class="stats-footnote">Promedio y mediana mensual se calculan sobre los meses del período que tienen compras.</p>' : ''}
+  `;
+}
+
+// ---------- Aumentos de precios por rubro y producto ----------
+let _increaseRubro = 'Todos';
+let _increaseData  = null;
+
+function setIncreaseRubro(rubro) {
+  _increaseRubro = rubro;
+  renderPriceIncreases();
+}
+
+function fmtPct(c) {
+  if (c === null || !isFinite(c)) return '<span class="stats-change flat">—</span>';
+  const cls = c > 0.0005 ? 'up' : c < -0.0005 ? 'down' : 'flat';
+  const pct = (c * 100).toFixed(1).replace('.', ',');
+  return `<span class="stats-change ${cls}">${c > 0 ? '+' : ''}${pct}%</span>`;
+}
+
+function loadPriceIncreases(supermarketFilter = '') {
+  _increaseData = computePriceIncreases(filteredDoneLists(supermarketFilter));
+  const rubros = _increaseData.rubros.map(r => r.nombre);
+  if (_increaseRubro !== 'Todos' && !rubros.includes(_increaseRubro)) _increaseRubro = 'Todos';
+  renderPriceIncreases();
+}
+
+function renderPriceIncreases() {
+  const el     = document.getElementById('reportIncreases');
+  const rubEl  = document.getElementById('reportIncreaseRubros');
+  const tglEl  = document.getElementById('increaseRubroToggle');
+  if (!el || !_increaseData) return;
+  const { products, rubros, excluded, minMonths } = _increaseData;
+  const rule = `Se calcula solo para productos con el mismo nombre comprados en al menos ${minMonths} meses consecutivos (se toma el tramo más reciente).`;
+
+  if (!products.length) {
+    if (tglEl) tglEl.innerHTML = '';
+    if (rubEl) rubEl.innerHTML = '';
+    el.innerHTML = `<p class="empty-msg">Todavía no hay productos con datos suficientes.</p><p class="stats-footnote">${rule}</p>`;
+    return;
+  }
+
+  const options = ['Todos', ...rubros.map(r => r.nombre)];
+  if (tglEl) tglEl.innerHTML = options.map(o => `
+    <button class="stats-btn ${o === _increaseRubro ? 'active' : ''}" onclick="setIncreaseRubro('${escapeHtml(o)}')">${escapeHtml(o)}</button>
+  `).join('');
+
+  // Resumen por rubro
+  if (rubEl) rubEl.innerHTML = `
+    <div class="stats-summary">
+      ${rubros.map(r => `
+        <div class="stats-kpi">
+          <span class="stats-kpi-label">${escapeHtml(r.nombre)} · ${r.productos} producto${r.productos !== 1 ? 's' : ''}</span>
+          <span class="stats-kpi-value">${fmtPct(r.monthlyChangeAvg)} <small>/mes</small></span>
+          <span class="stats-note">Último mes: ${fmtPct(r.lastChangeAvg)} · Mediana: ${fmtPct(r.monthlyChangeMedian)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  const shown = _increaseRubro === 'Todos' ? products : products.filter(p => p.rubro === _increaseRubro);
+
+  el.innerHTML = `
+    <div class="stats-table-wrap">
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Meses</th>
+            <th>Precio actual</th>
+            <th>Último mes</th>
+            <th>Prom. mensual</th>
+            <th>Acumulado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${shown.map(p => `
+            <tr>
+              <td class="stats-period">${escapeHtml(p.name)}<span class="stats-note">${escapeHtml(p.rubro)}</span></td>
+              <td>${p.months}<span class="stats-note">${p.fromLabel} – ${p.toLabel}</span></td>
+              <td>${fmtMoney(p.lastPrice)}<span class="stats-note">desde ${fmtMoney(p.firstPrice)}</span></td>
+              <td>${fmtPct(p.lastChange)}</td>
+              <td>${fmtPct(p.monthlyChange)}</td>
+              <td class="stats-total">${fmtPct(p.accumChange)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="stats-footnote">${rule}${excluded ? ` ${excluded} producto${excluded !== 1 ? 's' : ''} sin datos suficientes no se ${excluded !== 1 ? 'muestran' : 'muestra'}.` : ''}</p>
+  `;
 }
 
 function loadMonthlyReport(supermarketFilter = '') {

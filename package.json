@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "PWA de listas de compras con backend serverless en Vercel + MongoDB Atlas",
+  "nodejs": ">=26.x",
   "dependencies": {
     "mongo": "^0.1.0",
     "mongodb": "^6.12.0"

@@ -115,6 +115,26 @@
         <button class="btn-ghost" onclick="loadReports()">↻ Actualizar</button>
       </div>
       <div class="reports-grid">
+        <div class="report-card full-width">
+          <div class="stats-header">
+            <h3>📊 Estadísticas de gasto</h3>
+            <div class="stats-toggle" role="tablist">
+              <button class="stats-btn active" data-period="month"   onclick="setStatsPeriod('month', this)">Mensual</button>
+              <button class="stats-btn"        data-period="quarter" onclick="setStatsPeriod('quarter', this)">Trimestral</button>
+              <button class="stats-btn"        data-period="year"    onclick="setStatsPeriod('year', this)">Anual</button>
+            </div>
+          </div>
+          <div id="reportStatsSummary"></div>
+          <div id="reportStats"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
+        <div class="report-card full-width">
+          <div class="stats-header">
+            <h3>🔺 Aumentos de precios</h3>
+            <div class="stats-toggle" id="increaseRubroToggle"></div>
+          </div>
+          <div id="reportIncreaseRubros"></div>
+          <div id="reportIncreases"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
         <div class="report-card">
           <h3>💰 Gasto por mes</h3>
           <div id="reportMonthly"><p class="empty-msg">Sin datos aún</p></div>
@@ -147,6 +167,7 @@
     </div>
   </div>
  
+  <script src="stats.js"></script>
   <script src="script.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
