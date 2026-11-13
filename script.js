@@ -303,7 +303,6 @@ async function saveListToCloud() {
       storeClearDraft();
     }
 
-    
     await api('/lists', {
       method: 'POST',
       body: JSON.stringify({
