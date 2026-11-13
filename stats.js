@@ -9,6 +9,7 @@
 //      (sobre los meses del período que tienen compras)
 //    - variación del total contra el período anterior
 // ================================================================
+
 (function (root) {
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
