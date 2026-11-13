@@ -512,6 +512,10 @@ function setStatsPeriod(period, btn) {
   loadSpendingStats(filterVal);
 }
 
+function fmtMoneyShort(n) {
+  return '$' + Math.round(Number(n || 0)).toLocaleString('es-AR');
+}
+
 function fmtMoney(n) {
   return '$' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -541,48 +545,48 @@ function loadSpendingStats(supermarketFilter = '') {
   if (sumEl) sumEl.innerHTML = `
     <div class="stats-summary">
       <div class="stats-kpi"><span class="stats-kpi-label">Compras</span><span class="stats-kpi-value">${o.count}</span></div>
-      <div class="stats-kpi"><span class="stats-kpi-label">Promedio por compra</span><span class="stats-kpi-value">${fmtMoney(o.avgPerPurchase)}</span></div>
-      <div class="stats-kpi"><span class="stats-kpi-label">Mediana por compra</span><span class="stats-kpi-value">${fmtMoney(o.medianPerPurchase)}</span></div>
-      <div class="stats-kpi"><span class="stats-kpi-label">Promedio mensual</span><span class="stats-kpi-value">${fmtMoney(o.avgPerMonth)}</span></div>
-      <div class="stats-kpi"><span class="stats-kpi-label">Mediana mensual</span><span class="stats-kpi-value">${fmtMoney(o.medianPerMonth)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Promedio por compra</span><span class="stats-kpi-value">${fmtMoneyShort(o.avgPerPurchase)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Mediana por compra</span><span class="stats-kpi-value">${fmtMoneyShort(o.medianPerPurchase)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Promedio mensual</span><span class="stats-kpi-value">${fmtMoneyShort(o.avgPerMonth)}</span></div>
+      <div class="stats-kpi"><span class="stats-kpi-label">Mediana mensual</span><span class="stats-kpi-value">${fmtMoneyShort(o.medianPerMonth)}</span></div>
     </div>`;
 
   const rows = computeSpendingStats(data, _statsPeriod);
   const showMonthly = _statsPeriod !== 'month';
-  const prevLabel = { month: 'mes', quarter: 'trimestre', year: 'año' }[_statsPeriod];
+  const prevLabel = { month: 'mes ant.', quarter: 'trim. ant.', year: 'año ant.' }[_statsPeriod];
 
   el.innerHTML = `
     <div class="stats-table-wrap">
-      <table class="stats-table">
+      <table class="stats-table stats-table-cards">
         <thead>
           <tr>
             <th>Período</th>
-            <th>Compras</th>
-            <th>Total</th>
-            <th>Promedio x compra</th>
+            <th>Prom. x compra</th>
             <th>Mediana x compra</th>
-            ${showMonthly ? '<th>Promedio mensual</th><th>Mediana mensual</th>' : '<th>Mín · Máx</th>'}
-            <th>vs ${prevLabel} ant.</th>
+            ${showMonthly ? '<th>Prom. mensual</th><th>Mediana mensual</th>' : '<th>Mín · Máx</th>'}
+            <th>vs ${prevLabel}</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map(r => `
             <tr>
-              <td class="stats-period">${escapeHtml(r.label)}</td>
-              <td>${r.count}</td>
-              <td class="stats-total">${fmtMoney(r.total)}</td>
-              <td>${fmtMoney(r.avgPerPurchase)}</td>
-              <td>${fmtMoney(r.medianPerPurchase)}</td>
+              <td class="stats-period" data-label="Período">${escapeHtml(r.label)}<span class="stats-note">${r.accumLabel ? r.accumLabel + ' · ' : ''}${r.count} compra${r.count !== 1 ? 's' : ''} · ${fmtMoney(r.total)}</span></td>
+              <td data-label="Prom. x compra">${fmtMoney(r.avgPerPurchase)}</td>
+              <td data-label="Mediana x compra">${fmtMoney(r.medianPerPurchase)}</td>
               ${showMonthly
-                ? `<td>${fmtMoney(r.avgPerMonth)}<span class="stats-note">${r.monthsWithPurchases} mes${r.monthsWithPurchases !== 1 ? 'es' : ''}</span></td>
-                   <td>${fmtMoney(r.medianPerMonth)}</td>`
-                : `<td>${fmtMoney(r.minPurchase)}<span class="stats-note">máx ${fmtMoney(r.maxPurchase)}</span></td>`}
-              <td>${fmtChange(r.changeVsPrev)}</td>
+                ? `<td data-label="Prom. mensual">${fmtMoney(r.avgPerMonth)}<span class="stats-note">${r.monthsWithPurchases} mes${r.monthsWithPurchases !== 1 ? 'es' : ''}</span></td>
+                   <td data-label="Mediana mensual">${fmtMoney(r.medianPerMonth)}</td>`
+                : `<td data-label="Mín · Máx">${fmtMoney(r.minPurchase)}<span class="stats-note">máx ${fmtMoney(r.maxPurchase)}</span></td>`}
+              <td data-label="vs ${prevLabel}">${fmtChange(r.changeVsPrev)}${r.prevBase !== null ? `<span class="stats-note">vs ${fmtMoney(r.prevBase)}</span>` : ''}</td>
             </tr>`).join('')}
         </tbody>
       </table>
     </div>
-    ${showMonthly ? '<p class="stats-footnote">Promedio y mediana mensual se calculan sobre los meses del período que tienen compras.</p>' : ''}
+    <p class="stats-footnote">
+      Variación: compara el gasto total (no precios) contra el ${prevLabel.replace(' ant.', '').replace('trim.', 'trimestre')} anterior, tomando los mismos meses${_statsPeriod !== 'month' ? ' (si el período está en curso, se compara el acumulado contra los mismos meses del anterior)' : ''}.
+      Si falta algún mes con compras en cualquiera de los dos tramos, no se calcula.
+      ${showMonthly ? 'Promedio y mediana mensual se calculan sobre los meses del período que tienen compras.' : ''}
+    </p>
   `;
 }
 

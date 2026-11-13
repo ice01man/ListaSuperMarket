@@ -40,24 +40,52 @@
     const valid = (lists || []).filter(l =>
       Number(l.year) > 0 && Number(l.month) >= 1 && Number(l.month) <= 12);
 
+    const len = { month: 1, quarter: 3, year: 12 }[type] || 1;
     const groups = {};
+    const allMonths = {};   // índice de mes → total gastado (para comparar)
+
     valid.forEach(l => {
       const { key, label } = periodOf(l, type);
-      const monthKey = `${l.year}-${String(l.month).padStart(2, '0')}`;
+      const y = Number(l.year), m = Number(l.month);
+      const mIdx = monthIndex(y, m);
       const amount = parseFloat(l.total) || 0;
-      if (!groups[key]) groups[key] = { key, label, purchases: [], byMonth: {} };
-      groups[key].purchases.push(amount);
-      groups[key].byMonth[monthKey] = (groups[key].byMonth[monthKey] || 0) + amount;
+      // primer mes del período (enero del año / primer mes del trimestre / el mismo mes)
+      const startIdx = type === 'year'    ? monthIndex(y, 1)
+                     : type === 'quarter' ? monthIndex(y, (quarterOf(m) - 1) * 3 + 1)
+                     : mIdx;
+      if (!groups[key]) groups[key] = { key, label, startIdx, lastIdx: mIdx, purchases: [], byMonth: {} };
+      const g = groups[key];
+      g.purchases.push(amount);
+      g.byMonth[mIdx] = (g.byMonth[mIdx] || 0) + amount;
+      if (mIdx > g.lastIdx) g.lastIdx = mIdx;
+      allMonths[mIdx] = (allMonths[mIdx] || 0) + amount;
     });
 
-    // Orden cronológico ascendente para calcular variación
+    // Variación contra el período calendario anterior, comparando los
+    // MISMOS meses: si el año va de enero a octubre, se compara contra
+    // enero–octubre del año anterior (acumulado). Si falta algún mes con
+    // compras en cualquiera de los dos tramos, no se calcula.
+    function compare(g) {
+      let cur = 0, base = 0;
+      for (let i = g.startIdx; i <= g.lastIdx; i++) {
+        if (!(i in allMonths) || !((i - len) in allMonths)) return null;
+        cur  += allMonths[i];
+        base += allMonths[i - len];
+      }
+      if (base <= 0) return null;
+      return { change: (cur - base) / base, base };
+    }
+
     const asc = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
 
-    const result = asc.map((g, idx) => {
+    const result = asc.map(g => {
       const monthlyTotals = Object.values(g.byMonth);
       const total = sum(g.purchases);
-      const prev  = idx > 0 ? sum(asc[idx - 1].purchases) : null;
+      const cmp   = compare(g);
+      const partial = g.lastIdx - g.startIdx + 1 < len;
       return {
+        accumLabel:     partial ? `acum. ${labelOf(g.startIdx).split(' ')[0].toLowerCase()}–${labelOf(g.lastIdx).split(' ')[0].toLowerCase()}` : '',
+        prevBase:       cmp ? cmp.base : null,
         key:            g.key,
         label:          g.label,
         count:          g.purchases.length,
@@ -69,7 +97,7 @@
         monthsWithPurchases: monthlyTotals.length,
         avgPerMonth:       mean(monthlyTotals),
         medianPerMonth:    median(monthlyTotals),
-        changeVsPrev:      prev ? (total - prev) / prev : null
+        changeVsPrev:      cmp ? cmp.change : null
       };
     });
 
