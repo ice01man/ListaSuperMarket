@@ -66,6 +66,16 @@
     // enero–octubre del año anterior (acumulado). Si falta algún mes con
     // compras en cualquiera de los dos tramos, no se calcula.
     function compare(g) {
+      // Mensual: si el mes anterior no tiene compras, se toma el último
+      // mes anterior que sí tenga.
+      if (type === 'month') {
+        const prevIdx = Object.keys(allMonths).map(Number)
+          .filter(i => i < g.startIdx).sort((a, b) => b - a)[0];
+        if (prevIdx === undefined || allMonths[prevIdx] <= 0) return null;
+        const base = allMonths[prevIdx], cur = allMonths[g.startIdx];
+        return { change: (cur - base) / base, base,
+                 baseLabel: prevIdx === g.startIdx - 1 ? '' : labelOf(prevIdx).toLowerCase() };
+      }
       let cur = 0, base = 0;
       for (let i = g.startIdx; i <= g.lastIdx; i++) {
         if (!(i in allMonths) || !((i - len) in allMonths)) return null;
@@ -86,6 +96,7 @@
       return {
         accumLabel:     partial ? `acum. ${labelOf(g.startIdx).split(' ')[0].toLowerCase()}–${labelOf(g.lastIdx).split(' ')[0].toLowerCase()}` : '',
         prevBase:       cmp ? cmp.base : null,
+        prevBaseLabel:  cmp && cmp.baseLabel ? cmp.baseLabel : '',
         key:            g.key,
         label:          g.label,
         count:          g.purchases.length,
@@ -225,7 +236,76 @@
     return { products, rubros, excluded, minMonths: MIN_MESES_CONSECUTIVOS };
   }
 
-  const api = { mean, median, computeSpendingStats, computeOverallStats,
+  // ==============================================================
+  //  PRECIOS POR PRODUCTO: promedio, mediana, mín/máx y vs mes anterior
+  //  (precio unitario; cada vez que se compró cuenta como un registro)
+  // ==============================================================
+  function computeProductPriceStats(lists) {
+    const prods = {};
+    (lists || []).forEach(l => {
+      if (!(Number(l.year) > 0 && Number(l.month) >= 1 && Number(l.month) <= 12)) return;
+      const idx = monthIndex(l.year, l.month);
+      (l.items || []).forEach(i => {
+        const qty   = Number(i.quantity) || 0;
+        const price = parseFloat(i.unit_price) || 0;
+        if (qty <= 0 || price <= 0) return;             // sin precio cargado: no cuenta
+        const key = normalizeName(i.product_name);
+        if (!key) return;
+        if (!prods[key]) prods[key] = { name: String(i.product_name).trim(), rubro: rubroOf(i.product_name, l.supermarket), prices: [], months: {} };
+        const p = prods[key];
+        p.prices.push(price);
+        const m = p.months[idx] || (p.months[idx] = { amount: 0, qty: 0 });
+        m.amount += price * qty;
+        m.qty    += qty;
+      });
+    });
+
+    return Object.values(prods).map(p => {
+      const idxs = Object.keys(p.months).map(Number).sort((a, b) => a - b);
+      const monthPrice = i => p.months[i].amount / p.months[i].qty;
+      const lastIdx = idxs[idxs.length - 1];
+      const prevIdx = idxs.length > 1 ? idxs[idxs.length - 2] : null;   // último mes anterior con compras
+      const last = monthPrice(lastIdx);
+      const prev = prevIdx !== null ? monthPrice(prevIdx) : null;
+      return {
+        name:          p.name,
+        rubro:         p.rubro,
+        count:         p.prices.length,
+        months:        idxs.length,
+        lastLabel:     labelOf(lastIdx),
+        lastPrice:     last,
+        avg:           mean(p.prices),
+        median:        median(p.prices),
+        min:           Math.min(...p.prices),
+        max:           Math.max(...p.prices),
+        prevPrice:     prev,
+        prevLabel:     prevIdx !== null ? labelOf(prevIdx) : '',
+        prevIsGap:     prevIdx !== null && prevIdx !== lastIdx - 1,
+        changeVsPrev:  prev ? (last - prev) / prev : null
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }
+
+  // Totales para la fila TOTAL de la tabla de productos
+  function computeProductTotals(products) {
+    const ps = products || [];
+    const withPrev = ps.filter(p => p.prevPrice);
+    const lastCompared = sum(withPrev.map(p => p.lastPrice));
+    const prevCompared = sum(withPrev.map(p => p.prevPrice));
+    return {
+      products:     ps.length,
+      last:         sum(ps.map(p => p.lastPrice)),
+      avg:          sum(ps.map(p => p.avg)),
+      median:       sum(ps.map(p => p.median)),
+      min:          sum(ps.map(p => p.min)),
+      max:          sum(ps.map(p => p.max)),
+      compared:     withPrev.length,
+      lastCompared, prevCompared,
+      change:       prevCompared > 0 ? (lastCompared - prevCompared) / prevCompared : null
+    };
+  }
+
+  const api = { mean, median, computeSpendingStats, computeOverallStats, computeProductPriceStats, computeProductTotals,
                 computePriceIncreases, normalizeName, rubroOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(root, api);

@@ -129,6 +129,14 @@
         </div>
         <div class="report-card full-width">
           <div class="stats-header">
+            <h3>🏷️ Precios por producto</h3>
+            <div class="stats-toggle" id="productStatsRubroToggle"></div>
+          </div>
+          <input type="text" id="productStatsSearch" placeholder="Buscar producto…" oninput="renderProductPriceStats()" class="input-search"/>
+          <div id="reportProductStats"><p class="empty-msg">Sin datos aún</p></div>
+        </div>
+        <div class="report-card full-width">
+          <div class="stats-header">
             <h3>🔺 Aumentos de precios</h3>
             <div class="stats-toggle" id="increaseRubroToggle"></div>
           </div>

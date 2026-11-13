@@ -470,6 +470,8 @@ nav { display: flex; gap: 4px; }
 .stats-change.up   { color: var(--danger); }
 .stats-change.down { color: var(--accent); }
 .stats-change.flat { color: var(--text3); }
+.stats-total-row td { border-top: 2px solid var(--border); border-bottom: none; font-weight: 700; }
+.stats-total-row .stats-note { font-weight: 400; }
 .stats-footnote { font-size: .72rem; color: var(--text3); margin-top: 10px; }
 
 /* Ranking bar */
@@ -680,7 +682,9 @@ nav { display: flex; gap: 4px; }
 
   /* Estadísticas de gasto: en celular cada período es una tarjeta */
   .stats-table-cards thead { display: none; }
-  .stats-table-cards, .stats-table-cards tbody { display: block; }
+  .stats-table-cards, .stats-table-cards tbody, .stats-table-cards tfoot { display: block; }
+  .stats-table-cards tfoot tr { border-top: 2px solid var(--border); border-bottom: none; }
+  .stats-table-cards .stats-total-row td { border-top: none; }
   .stats-table-cards tr {
     display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px;
     padding: 12px 0; border-bottom: 1px solid var(--border);

@@ -478,6 +478,7 @@ async function loadReports() {
 
   const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
   loadSpendingStats(filterVal);
+  loadProductPriceStats(filterVal);
   loadPriceIncreases(filterVal);
   loadMonthlyReport(filterVal);
   loadTopProducts(filterVal);
@@ -487,6 +488,7 @@ async function loadReports() {
 function applyReportFilter() {
   const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
   loadSpendingStats(filterVal);
+  loadProductPriceStats(filterVal);
   loadPriceIncreases(filterVal);
   loadMonthlyReport(filterVal);
   loadTopProducts(filterVal);
@@ -506,7 +508,7 @@ let _statsPeriod = 'month';   // 'month' | 'quarter' | 'year'
 
 function setStatsPeriod(period, btn) {
   _statsPeriod = period;
-  document.querySelectorAll('.stats-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.stats-btn[data-period]').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   const filterVal = document.getElementById('reportFilterSupermarket')?.value.trim() || '';
   loadSpendingStats(filterVal);
@@ -577,16 +579,102 @@ function loadSpendingStats(supermarketFilter = '') {
                 ? `<td data-label="Prom. mensual">${fmtMoney(r.avgPerMonth)}<span class="stats-note">${r.monthsWithPurchases} mes${r.monthsWithPurchases !== 1 ? 'es' : ''}</span></td>
                    <td data-label="Mediana mensual">${fmtMoney(r.medianPerMonth)}</td>`
                 : `<td data-label="Mín · Máx">${fmtMoney(r.minPurchase)}<span class="stats-note">máx ${fmtMoney(r.maxPurchase)}</span></td>`}
-              <td data-label="vs ${prevLabel}">${fmtChange(r.changeVsPrev)}${r.prevBase !== null ? `<span class="stats-note">vs ${fmtMoney(r.prevBase)}</span>` : ''}</td>
+              <td data-label="vs ${prevLabel}">${fmtChange(r.changeVsPrev)}${r.prevBase !== null ? `<span class="stats-note">vs ${fmtMoney(r.prevBase)}${r.prevBaseLabel ? ` (${r.prevBaseLabel})` : ''}</span>` : ''}</td>
             </tr>`).join('')}
         </tbody>
       </table>
     </div>
     <p class="stats-footnote">
-      Variación: compara el gasto total (no precios) contra el ${prevLabel.replace(' ant.', '').replace('trim.', 'trimestre')} anterior, tomando los mismos meses${_statsPeriod !== 'month' ? ' (si el período está en curso, se compara el acumulado contra los mismos meses del anterior)' : ''}.
-      Si falta algún mes con compras en cualquiera de los dos tramos, no se calcula.
+      ${_statsPeriod === 'month'
+        ? 'Variación: compara el gasto total (no precios) contra el mes anterior. Si ese mes no tuvo compras, se toma el último mes anterior con compras (se indica entre paréntesis).'
+        : `Variación: compara el gasto total (no precios) contra el ${prevLabel.replace(' ant.', '').replace('trim.', 'trimestre')} anterior, tomando los mismos meses (si el período está en curso, se compara el acumulado contra los mismos meses del anterior). Si falta algún mes con compras en cualquiera de los dos tramos, no se calcula.`}
       ${showMonthly ? 'Promedio y mediana mensual se calculan sobre los meses del período que tienen compras.' : ''}
     </p>
+  `;
+}
+
+// ---------- Precios por producto (prom / mediana / mín-máx / vs mes ant.) ----------
+let _productStats = [];
+let _productStatsRubro = 'Todos';
+
+function loadProductPriceStats(supermarketFilter = '') {
+  _productStats = computeProductPriceStats(filteredDoneLists(supermarketFilter));
+  const rubros = [...new Set(_productStats.map(p => p.rubro))];
+  if (_productStatsRubro !== 'Todos' && !rubros.includes(_productStatsRubro)) _productStatsRubro = 'Todos';
+  renderProductPriceStats();
+}
+
+function setProductStatsRubro(rubro) {
+  _productStatsRubro = rubro;
+  renderProductPriceStats();
+}
+
+// Fila TOTAL: suma los valores de los productos que se ven en la tabla.
+// vs mes ant.: suma de últimos precios contra suma de precios anteriores,
+// solo de los productos que tienen precio anterior.
+function renderProductTotalRow(products) {
+  const t = computeProductTotals(products);
+  return `
+        <tfoot>
+          <tr class="stats-total-row">
+            <td class="stats-period" data-label="Total">TOTAL<span class="stats-note">${t.products} producto${t.products !== 1 ? 's' : ''} · último ${fmtMoney(t.last)}</span>${t.compared && t.compared < t.products ? `<span class="stats-note">vs mes ant.: ${t.compared} con precio anterior (${fmtMoney(t.lastCompared)})</span>` : ''}</td>
+            <td data-label="Prom.">${fmtMoney(t.avg)}</td>
+            <td data-label="Mediana">${fmtMoney(t.median)}</td>
+            <td data-label="Mín · Máx">${fmtMoney(t.min)}<span class="stats-note">máx ${fmtMoney(t.max)}</span></td>
+            <td data-label="vs mes ant.">${fmtChange(t.change)}${t.compared ? `<span class="stats-note">vs ${fmtMoney(t.prevCompared)}</span>` : ''}</td>
+          </tr>
+        </tfoot>`;
+}
+
+function renderProductPriceStats() {
+  const el    = document.getElementById('reportProductStats');
+  const tglEl = document.getElementById('productStatsRubroToggle');
+  if (!el) return;
+  if (!_productStats.length) {
+    el.innerHTML = '<p class="empty-msg">Sin datos aún</p>';
+    if (tglEl) tglEl.innerHTML = '';
+    return;
+  }
+
+  const rubros = [...new Set(_productStats.map(p => p.rubro))].sort();
+  if (tglEl) tglEl.innerHTML = rubros.length > 1
+    ? ['Todos', ...rubros].map(o => `<button class="stats-btn ${o === _productStatsRubro ? 'active' : ''}" onclick="setProductStatsRubro('${escapeHtml(o)}')">${escapeHtml(o)}</button>`).join('')
+    : '';
+
+  const q = (document.getElementById('productStatsSearch')?.value || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const shown = _productStats.filter(p =>
+    (_productStatsRubro === 'Todos' || p.rubro === _productStatsRubro) &&
+    (!q || p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q)));
+
+  if (!shown.length) { el.innerHTML = '<p class="empty-msg">Ningún producto coincide.</p>'; return; }
+
+  el.innerHTML = `
+    <div class="stats-table-wrap">
+      <table class="stats-table stats-table-cards">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Prom.</th>
+            <th>Mediana</th>
+            <th>Mín · Máx</th>
+            <th>vs mes ant.</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${shown.map(p => `
+            <tr>
+              <td class="stats-period" data-label="Producto">${escapeHtml(p.name)}<span class="stats-note">${p.count} compra${p.count !== 1 ? 's' : ''} · último ${fmtMoney(p.lastPrice)} (${p.lastLabel.toLowerCase()})</span></td>
+              <td data-label="Prom.">${fmtMoney(p.avg)}</td>
+              <td data-label="Mediana">${fmtMoney(p.median)}</td>
+              <td data-label="Mín · Máx">${fmtMoney(p.min)}<span class="stats-note">máx ${fmtMoney(p.max)}</span></td>
+              <td data-label="vs mes ant.">${fmtChange(p.changeVsPrev)}${p.prevPrice !== null ? `<span class="stats-note">vs ${fmtMoney(p.prevPrice)}${p.prevIsGap ? ` (${p.prevLabel.toLowerCase()})` : ''}</span>` : ''}</td>
+            </tr>`).join('')}
+        </tbody>
+        ${renderProductTotalRow(shown)}
+      </table>
+    </div>
+    <p class="stats-footnote">Precio unitario. vs mes ant.: precio del último mes en que se compró contra el mes anterior en que se compró (si hubo meses sin comprarlo, se indica cuál entre paréntesis). Si se compró varias veces en un mes, se usa el promedio ponderado por cantidad. Items sin precio cargado no cuentan. TOTAL: suma de los productos que se ven en la tabla; su vs mes ant. compara la suma de últimos precios contra la suma de precios anteriores, solo de los productos que tienen precio anterior.</p>
   `;
 }
 
